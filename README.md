@@ -6,5 +6,5 @@ This script creates a penalised logistic regression (PLR) with LASSO regression,
 
 Network_nat_imm_revs - Network analysis
 
-To further describe the results of the the PLR, the relationships of the top proteins identifed by the PLR were analysed with the xxx package.
+To further describe the results of the the PLR, the relationships of the top proteins identifed by the PLR were analysed with the estimatenewtork and qgraph package.
 Data was restricted to the NPX results generated through Olink Explore 384 Inflammation panel. Script used to generate Fig. 2.
