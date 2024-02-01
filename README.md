@@ -8,3 +8,6 @@ Network_nat_imm_revs - Network analysis
 
 To further describe the results of the the PLR, the relationships of the top proteins identifed by the PLR were analysed with the qgraph package.
 Data was restricted to the NPX results generated through Olink Explore 384 Inflammation panel. Script used to generate Fig. 2.
+
+
+This code has been edited to remove senstive data. The full dataset can be accessed contacting phosp@leicester.ac.uk 
