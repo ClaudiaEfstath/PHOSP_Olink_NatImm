@@ -33,18 +33,7 @@ library(ipflasso)
 olink_f = olink3_3m%>%
   filter(!is.na(Fatigue)) 
 
-summary(olink_f$Fatigue)
-olink_f = olink_f%>%
-  mutate(any_comorb = NA)
-olink_f$any_comorb[olink_f$neuro_comorb=='Yes'|olink_f$cp_comorb=='Yes'|olink_f$gi_comorb=='Yes'| 
-                     olink_f$gen_fat_comorb=='Yes']='Yes'
-olink_f$any_comorb[olink_f$comorb== 'None']='No'
-
-olink_f$any_comorb=factor(olink_f$any_comorb, levels = c('No', 'Yes'))
-olink_f = olink_f%>%
-  filter(!is.na(any_comorb))
-
-olink_f=olink_f%>%
+olink_f=olink_f%>% 
   select(-cluster, -chronic_inf,- VASH1, - SULT2A1, - CCL28, -'HLA-DRA', - CTSC, 
          -BCL2L11, - RAB6A, -IL2RB, -IL33, -  ITGA6, -LILRB4 )%>% #remove variables with high missingness that were not sig in volcano plots
   select(-study_id, -PASC_4,-PASC_1, -PASC_2, -PASC_3,  -phosp_id, -SampleID, -neuro_comorb, -gi_comorb, -cp_comorb, 
@@ -80,14 +69,22 @@ coef(cv.ridge, cv.ridge$lambda.min)
 model = glmnet(x,y,alpha = 0, family = 'binomial', 
                lamda = cv.ridge$lambda.min)
 
+#apply test data
+x.test <- model.matrix(Fatigue ~., test.data)[,-1]
+probabilities <- model %>% predict(newx = x.test)
+predicted.classes <- ifelse(probabilities > 0.5, "pos", "neg")
+# Model accuracy
+observed.classes <- test.data$Fatigue
+mean(predicted.classes == observed.classes) 
 
+#get model coefficients
 fat_ridge=coef(cv.ridge, cv.ridge$lambda.min) 
 
 #convert odds ratios
 beta_1 = fat_ridge
 fat_or = as.data.frame(as.matrix(beta_1))
-v = exp(fat_or$s1*1.44)
-z = exp(fat_or$s1*0.56)
+v = exp(fat_or$s1*1.40)
+z = exp(fat_or$s1*0.60)
 exp_beta_1_cp = exp(fat_or$s1)
 
 fat_or = fat_or%>%
@@ -102,7 +99,7 @@ fat_or = fat_or %>%
 
 fat_or$predictor[fat_or$predictor=='crf1a_sex' ]='Female'
 
-#identify top quartiles to threshold number of mediators shown on plots
+#identify top deciles to threshold number of mediators shown on plots
 fat_or2 =fat_or %>%
   filter(OR> 1)%>%
   arrange(desc(s1))
@@ -125,7 +122,7 @@ fat_forest = ggplot(data =fat_or4,aes(y =reorder(predictor,OR, decreasing=F), xm
 
 
 
-##### Make final box plot of nested cv outputs----
+##### box plot of nested cv outputs----
 
 p= ggplot(data=cvm_long, mapping=aes(x=Symptom, y=class ))
 cvm_box=p+geom_boxplot(outlier.shape=NA,aes(color = Symptom))+ 
