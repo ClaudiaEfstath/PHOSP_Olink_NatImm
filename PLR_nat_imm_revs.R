@@ -68,35 +68,22 @@ x = model.matrix(Fatigue~.,olink_f)[,-1]
 
 #created outcome into numerical variable
 y = ifelse(olink_f$Fatigue=="Fatigue", 1, 0)
+
+#cross validation
 cv.ridge=cv.glmnet(x,y, alpha = 0, family ="binomial")
 plot(cv.ridge)
-cv.ridge$lambda.min
-coef(cv.ridge, cv.ridge$lambda.1se) 
+nestedcv.ridge =cvr.glmnet(x,y, family = 'binomial', lamda =  cv.ridge$lambda.min, standardize = FALSE, nfolds = 5, ncv = 10, type.measure ='class' )
+cv.ridge$lambda.min #lamda for optimal model
+coef(cv.ridge, cv.ridge$lambda.min) 
 
-model=glmnet(x,y, alpha = 0, family = "binomial", lamda = NULL)
-## nested cv 
-nestedcv_fat =cvr.glmnet(x,y, family = 'binomial', standardize = FALSE, nfolds = 5, ncv = 10, type.measure ='class' )
-nestedcv_fat_auc =cvr.glmnet(x,y, family = 'binomial', standardize = FALSE, nfolds = 5, ncv = 10, type.measure ='auc' )
-summary(nestedcv_fat$cvm)
-summary(nestedcv_fat_auc$cvm)
-fat_cvm = as.data.frame(nestedcv_fat$cvm)
-fat_cvm_auc = as.data.frame(nestedcv_fat_auc$cvm)
-
-
-#lasso method: Find the best lamda using cross-validation
-cv.ridge = cv.glmnet(x,y,alpha = 0, family ="binomial")
 #fit the final model on the training data
 model = glmnet(x,y,alpha = 0, family = 'binomial', 
                lamda = cv.ridge$lambda.min)
 
+
 fat_ridge=coef(cv.ridge, cv.ridge$lambda.min) 
 
-fat_model_olink= fat_ridge%>%
-  tidy()%>%
-  write_clip()
-
-
-#fatigue forest
+#convert odds ratios
 beta_1 = fat_ridge
 fat_or = as.data.frame(as.matrix(beta_1))
 v = exp(fat_or$s1*1.44)
@@ -107,7 +94,6 @@ fat_or = fat_or%>%
   mutate(OR=exp_beta_1_cp)%>%
   mutate(upper = v)%>%
   mutate(lower = z)
-
 
 fat_or$predictor = row.names(fat_or)
 fat_or = fat_or %>%
@@ -124,10 +110,8 @@ quantile(fat_or2$OR, probs = seq(0.05,1, by = 0.05))
 fat_or3 =fat_or %>%
   filter(OR< 1)%>%
   arrange(desc(s1))
-quantile(fat_or3$OR, probs = seq(0.1,1, by = 0.1))
+quantile(fat_or3$OR, probs = seq(0.05,1, by = 0.1))
 
-fat_or4= fat_or%>%
-  filter(OR> 1.085 |OR<0.88)
 
 fat_forest = ggplot(data =fat_or4,aes(y =reorder(predictor,OR, decreasing=F), xmax = upper, xmin = lower, x= OR))+
   geom_pointrange( show.legend = FALSE, shape = 20, fill = 'hotpink4', size = 1.1, color = 'hotpink4')+
@@ -141,22 +125,7 @@ fat_forest = ggplot(data =fat_or4,aes(y =reorder(predictor,OR, decreasing=F), xm
 
 
 
-##### Make final box plot of nested cv accuracy----
-cvm = cvm%>%
-  rename(affective = 'nestedcv_aff$cvm' )%>%
-  rename(cp = 'nestedcv_cp$cvm' )%>%
-  rename(cognitive = 'nestedcv_b$cvm')%>%
-  rename(fatigue ='nestedcv_fat$cvm')%>%
-  rename(gi ='nestedcv_g$cvm' )
-
-#make boxplot
-head(cvm)
-# make data long
-cvm_long = cvm%>%
-  pivot_longer(cols =affective:cognitive,
-               names_to= 'Symptom',
-               values_to = 'class')
-
+##### Make final box plot of nested cv outputs----
 
 p= ggplot(data=cvm_long, mapping=aes(x=Symptom, y=class ))
 cvm_box=p+geom_boxplot(outlier.shape=NA,aes(color = Symptom))+ 
@@ -172,22 +141,6 @@ cvm_box=p+geom_boxplot(outlier.shape=NA,aes(color = Symptom))+
         axis.text.x= element_text(angle =30, hjust = 0.9))+
   theme(plot.title = element_text(size = 16, vjust = 2), panel.border = element_rect(colour='black', fill = NA));cvm_box
 
-#auc curve
-cvm_auc = cbind(aff_cvm_auc, cp_cvm_auc,fat_cvm_auc, b_auc,nestedcv_g_df_auc)
-cvm_auc = cvm_auc%>%
-  rename(affective = 'nestedcv_aff_auc$cvm' )
-cvm_auc = cvm_auc%>%
-  rename(cp = 'nestedcv_cp_auc$cvm' )%>%
-  rename(cognitive = 'nestedcv_b_auc$cvm')%>%
-  rename(fatigue ='nestedcv_fat_auc$cvm')%>%
-  rename(gi ='nestedcv_g_auc$cvm' )
-#make boxplot
-head(cvm_auc)
-# make data long
-cvm_long_auc = cvm_auc%>%
-  pivot_longer(cols =affective:gi,
-               names_to= 'Symptom',
-               values_to = 'AUC')
 p= ggplot(data=cvm_long_auc, mapping=aes(x=Symptom, y=AUC ))
 cvm_box_auc=p+geom_boxplot(outlier.shape=NA,aes(color = Symptom))+ 
   theme(panel.background = element_rect (fill = 'white', colour = "black"))+
