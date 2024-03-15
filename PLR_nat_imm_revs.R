@@ -59,9 +59,8 @@ x = model.matrix(Fatigue~.,olink_f)[,-1]
 y = ifelse(olink_f$Fatigue=="Fatigue", 1, 0)
 
 #cross validation
-cv.ridge=cv.glmnet(x,y, alpha = 0, family ="binomial")
+cv.ridge=cv.glmnet(x,y, alpha = 0, family ="binomial", nfolds=10)
 plot(cv.ridge)
-nestedcv.ridge =cvr.glmnet(x,y, family = 'binomial', lamda =  cv.ridge$lambda.min, standardize = FALSE, nfolds = 5, ncv = 10, type.measure ='class' )
 cv.ridge$lambda.min #lamda for optimal model
 coef(cv.ridge, cv.ridge$lambda.min) 
 
